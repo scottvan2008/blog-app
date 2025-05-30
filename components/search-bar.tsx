@@ -26,7 +26,7 @@ export default function SearchBar() {
         placeholder="Search posts..."
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
-        className="flex-1"
+        className="text-gray-700 flex-1"
       />
       <Button type="submit" size="icon">
         <Search className="h-4 w-4" />
