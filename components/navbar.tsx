@@ -120,9 +120,6 @@ export default function Navbar() {
             </>
           ) : (
             <>
-              <Button asChild variant="secondary" size="sm" className="text-gray-800 font-medium">
-                <Link href="/login">Login</Link>
-              </Button>
               <Button
                 asChild
                 variant="outline"
