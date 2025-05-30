@@ -28,8 +28,8 @@ export default function RootLayout({
             <AuthProvider>
               <div className="min-h-screen flex flex-col">
                 <Navbar />
-                <main className="flex-1">{children}</main>
-                <footer className="py-6 border-t">
+                <main className="flex-1 bg-cyan-100/50">{children}</main>
+                <footer className="py-6 border-t bg-cyan-100/50">
                   <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
                     <div className="flex items-center justify-center mb-2">
                       <span className="text-xl mr-1">💧</span>
