@@ -15,3 +15,16 @@ export function getCategoryName(categoryId: string): string {
   const category = categories.find((cat) => cat.id === categoryId)
   return category ? category.name : "Uncategorized"
 }
+
+// Enhanced function to get category name (supports custom categories)
+export function getCategoryDisplayName(categoryId: string, customCategories: any[] = []): string {
+  // Check if it's a custom category
+  if (categoryId.startsWith("custom_")) {
+    const customId = categoryId.replace("custom_", "")
+    const customCategory = customCategories.find((cat) => cat.id === customId)
+    return customCategory ? customCategory.name : "Custom Category"
+  }
+
+  // Default category
+  return getCategoryName(categoryId)
+}

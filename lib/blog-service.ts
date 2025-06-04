@@ -36,6 +36,7 @@ export async function createBlogPost(
   category = "other",
   authorPhotoURL?: string,
   imageFile?: File,
+  customCategoryId?: string, // Add this parameter
 ): Promise<string> {
   let imageUrl = ""
 
@@ -47,16 +48,25 @@ export async function createBlogPost(
   }
 
   // Create blog post document
-  const blogData = {
+  const blogData: any = {
     title,
     content,
-    imageUrl,
     authorId,
     authorName,
-    authorPhotoURL,
-    category,
+    category: customCategoryId ? "" : category,
+    customCategoryId: customCategoryId || "",
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
+  }
+
+  // Only add imageUrl if it exists
+  if (imageUrl) {
+    blogData.imageUrl = imageUrl
+  }
+
+  // Only add authorPhotoURL if it exists
+  if (authorPhotoURL) {
+    blogData.authorPhotoURL = authorPhotoURL
   }
 
   const docRef = await addDoc(collection(db, "blogPosts"), blogData)
@@ -70,6 +80,7 @@ export async function updateBlogPost(
   category = "other",
   imageFile?: File,
   currentImageUrl?: string,
+  customCategoryId?: string, // Add this parameter
 ): Promise<void> {
   const postRef = doc(db, "blogPosts", postId)
   let imageUrl = currentImageUrl || ""
@@ -93,13 +104,20 @@ export async function updateBlogPost(
   }
 
   // Update blog post
-  await updateDoc(postRef, {
+  const updateData: any = {
     title,
     content,
-    category,
-    imageUrl,
+    category: customCategoryId ? "" : category,
+    customCategoryId: customCategoryId || "",
     updatedAt: serverTimestamp(),
-  })
+  }
+
+  // Only add imageUrl if it exists
+  if (imageUrl) {
+    updateData.imageUrl = imageUrl
+  }
+
+  await updateDoc(postRef, updateData)
 }
 
 export async function deleteBlogPost(postId: string, imageUrl?: string): Promise<void> {

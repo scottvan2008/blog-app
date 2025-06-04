@@ -17,9 +17,8 @@ import { ImageIcon, X } from "lucide-react"
 // Update the imports to include our new RichTextEditor
 import RichTextEditor from "@/components/rich-text-editor"
 
-// Add import for categories
-import { categories } from "@/lib/categories"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+// Add import
+import CategorySelector from "@/components/category-selector"
 
 export default function EditBlogPage({ params }: { params: { id: string } }) {
   const [title, setTitle] = useState("")
@@ -36,6 +35,9 @@ export default function EditBlogPage({ params }: { params: { id: string } }) {
 
   // Add state for category
   const [category, setCategory] = useState("other")
+
+  // Add state for custom category
+  const [customCategoryId, setCustomCategoryId] = useState<string | undefined>()
 
   // Update the useEffect to set the category
   useEffect(() => {
@@ -67,6 +69,7 @@ export default function EditBlogPage({ params }: { params: { id: string } }) {
         setTitle(post.title)
         setContent(post.content)
         setCategory(post.category || "other")
+        setCustomCategoryId(post.customCategoryId || undefined) // Add this line
         setCurrentImageUrl(post.imageUrl)
         if (post.imageUrl) {
           setImagePreview(post.imageUrl)
@@ -139,7 +142,15 @@ export default function EditBlogPage({ params }: { params: { id: string } }) {
     setIsLoading(true)
 
     try {
-      await updateBlogPost(params.id, title, content, category, imageFile || undefined, currentImageUrl)
+      await updateBlogPost(
+        params.id,
+        title,
+        content,
+        category,
+        imageFile || undefined,
+        currentImageUrl,
+        customCategoryId, // Add this parameter
+      )
 
       toast({
         title: "Blog post updated",
@@ -222,21 +233,12 @@ export default function EditBlogPage({ params }: { params: { id: string } }) {
             </div>
 
             {/* Add category selection field after the title field */}
-            <div className="space-y-2">
-              <Label htmlFor="category">Category</Label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <CategorySelector
+              value={category}
+              onValueChange={setCategory}
+              customCategoryId={customCategoryId}
+              onCustomCategoryChange={setCustomCategoryId}
+            />
 
             {/* Replace the Textarea component with our RichTextEditor */}
             <div className="space-y-2">
