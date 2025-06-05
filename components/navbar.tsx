@@ -138,12 +138,9 @@ export default function Navbar() {
             </>
           ) : (
             <>
-<<<<<<< Updated upstream
-=======
               <Button asChild variant="ghost" className="text-primary-foreground/80 hover:text-primary-foreground">
                 <Link href="/login">Log In</Link>
               </Button>
->>>>>>> Stashed changes
               <Button
                 asChild
                 variant="outline"
