@@ -12,7 +12,7 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata = {
   title: "InkDrop - Write, Share, Discover",
   description: "A simple and elegant blogging platform",
-    generator: 'v0.dev'
+  generator: "v0.dev",
 }
 
 export default function RootLayout({
@@ -21,15 +21,15 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange={false}>
           <FirebaseWrapper>
             <AuthProvider>
               <div className="min-h-screen flex flex-col">
                 <Navbar />
-                <main className="flex-1 bg-cyan-100/50">{children}</main>
-                <footer className="py-6 border-t bg-cyan-100/50">
+                <main className="flex-1 bg-background">{children}</main>
+                <footer className="py-6 border-t bg-background">
                   <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
                     <div className="flex items-center justify-center mb-2">
                       <span className="text-xl mr-1">💧</span>

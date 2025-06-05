@@ -14,9 +14,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { ImageIcon, X } from "lucide-react"
 // Update the imports to include our new RichTextEditor
 import RichTextEditor from "@/components/rich-text-editor"
-// Add import for categories
-import { categories } from "@/lib/categories"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import CategorySelector from "@/components/category-selector"
 
 export default function CreateBlogPage() {
   const [title, setTitle] = useState("")
@@ -30,6 +28,8 @@ export default function CreateBlogPage() {
   const { toast } = useToast()
   // Add state for category
   const [category, setCategory] = useState("other")
+  // Add state for custom category
+  const [customCategoryId, setCustomCategoryId] = useState<string | undefined>()
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -87,6 +87,7 @@ export default function CreateBlogPage() {
         category,
         user.photoURL || undefined,
         imageFile || undefined,
+        customCategoryId, // Add this parameter
       )
 
       toast({
@@ -127,22 +128,13 @@ export default function CreateBlogPage() {
               />
             </div>
 
-            {/* Add category selection field after the title field */}
-            <div className="space-y-2">
-              <Label htmlFor="category">Category</Label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Replace the category selection section with: */}
+            <CategorySelector
+              value={category}
+              onValueChange={setCategory}
+              customCategoryId={customCategoryId}
+              onCustomCategoryChange={setCustomCategoryId}
+            />
 
             {/* Replace the Textarea component with our RichTextEditor */}
             <div className="space-y-2">

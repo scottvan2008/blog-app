@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { getAllBlogPosts, type BlogPost } from "@/lib/blog-service"
+import type { BlogPost } from "@/lib/blog-service"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatDistanceToNow } from "date-fns"
@@ -12,19 +12,26 @@ import { formatDistanceToNow } from "date-fns"
 import { categories, getCategoryName } from "@/lib/categories"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+// Add imports
+import { getAllBlogPostsWithCategories } from "@/lib/enhanced-blog-service"
+import { getCustomCategories, type CustomCategory } from "@/lib/category-service"
 
 export default function BlogList() {
-  const [posts, setPosts] = useState<BlogPost[]>([])
+  // Update state
+  const [posts, setPosts] = useState<(BlogPost & { categoryName: string })[]>([])
   const [loading, setLoading] = useState(true)
+  const [customCategories, setCustomCategories] = useState<CustomCategory[]>([])
 
   // Add state for category filter
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
 
+  // Update the useEffect to fetch enhanced posts
   useEffect(() => {
     const fetchPosts = async () => {
       try {
-        const allPosts = await getAllBlogPosts()
+        const [allPosts, customCats] = await Promise.all([getAllBlogPostsWithCategories(), getCustomCategories()])
         setPosts(allPosts)
+        setCustomCategories(customCats)
       } catch (error) {
         console.error("Error fetching blog posts:", error)
       } finally {
@@ -35,8 +42,17 @@ export default function BlogList() {
     fetchPosts()
   }, [])
 
-  // Add filtered posts logic
-  const filteredPosts = categoryFilter ? posts.filter((post) => post.category === categoryFilter) : posts
+  // Update the filtered posts logic
+  const filteredPosts = categoryFilter
+    ? posts.filter((post) => {
+        if (categoryFilter.startsWith("custom_")) {
+          const customId = categoryFilter.replace("custom_", "")
+          return post.customCategoryId === customId
+        } else {
+          return post.category === categoryFilter
+        }
+      })
+    : posts
 
   if (loading) {
     return (
@@ -74,11 +90,28 @@ export default function BlogList() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
+
+                {/* Default Categories */}
+                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Default Categories</div>
                 {categories.map((cat) => (
                   <SelectItem key={cat.id} value={cat.id}>
                     {cat.name}
                   </SelectItem>
                 ))}
+
+                {/* Custom Categories */}
+                {customCategories.length > 0 && (
+                  <>
+                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t mt-1 pt-2">
+                      Custom Categories
+                    </div>
+                    {customCategories.map((cat) => (
+                      <SelectItem key={`custom_${cat.id}`} value={`custom_${cat.id}`}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -116,9 +149,9 @@ export default function BlogList() {
                 <CardFooter className="flex justify-between">
                   <span className="text-sm text-muted-foreground">By {post.authorName}</span>
                   <div className="flex items-center gap-2">
-                    {post.category && (
+                    {post.categoryName && (
                       <Badge variant="secondary" className="text-xs">
-                        {getCategoryName(post.category)}
+                        {post.categoryName}
                       </Badge>
                     )}
                     {post.createdAt && (

@@ -23,14 +23,14 @@ import {
 } from "@/components/ui/alert-dialog"
 import { ArrowLeft, Edit, MessageSquare, Trash2, Loader2 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
-
-// Add imports for new components
-import { getCategoryName } from "@/lib/categories"
 import { Badge } from "@/components/ui/badge"
 import FollowButton from "@/components/follow-button"
 import LikeButton from "@/components/like-button"
 import CommentSection from "@/components/comment-section"
 import UserAvatar from "@/components/user-avatar"
+
+// Add import
+import { getPostCategoryName } from "@/lib/enhanced-blog-service"
 
 export default function BlogPostPage({ params }: { params: { id: string } }) {
   const [post, setPost] = useState<BlogPost | null>(null)
@@ -42,11 +42,20 @@ export default function BlogPostPage({ params }: { params: { id: string } }) {
   const router = useRouter()
   const { toast } = useToast()
 
+  // Add state for category name
+  const [categoryName, setCategoryName] = useState<string>("")
+
+  // Update the useEffect to get category name
   useEffect(() => {
     const fetchPost = async () => {
       try {
         const postData = await getBlogPost(params.id)
         setPost(postData)
+
+        if (postData) {
+          const catName = await getPostCategoryName(postData)
+          setCategoryName(catName)
+        }
       } catch (error) {
         console.error("Error fetching blog post:", error)
         toast({
@@ -160,11 +169,7 @@ export default function BlogPostPage({ params }: { params: { id: string } }) {
       {/* Category badge and interaction buttons */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
-          {post.category && (
-            <Link href={`/search?category=${post.category}`}>
-              <Badge variant="secondary">{getCategoryName(post.category)}</Badge>
-            </Link>
-          )}
+          {categoryName && <Badge variant="secondary">{categoryName}</Badge>}
         </div>
 
         <div className="flex items-center gap-2">

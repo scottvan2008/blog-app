@@ -6,11 +6,12 @@ import Link from "next/link"
 import Image from "next/image"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { searchPostsByTitle, searchPostsByCategory } from "@/lib/search-service"
+import { searchPostsByTitle } from "@/lib/search-service"
 import { formatDistanceToNow } from "date-fns"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { getCategoryName } from "@/lib/categories"
 import { Search } from "lucide-react"
+import { getPostsByCategory } from "@/lib/enhanced-blog-service"
 
 export default function SearchPage() {
   const searchParams = useSearchParams()
@@ -27,7 +28,13 @@ export default function SearchPage() {
         let searchResults = []
 
         if (category) {
-          searchResults = await searchPostsByCategory(category)
+          // Check if it's a custom category
+          if (category.startsWith("custom_")) {
+            const customId = category.replace("custom_", "")
+            searchResults = await getPostsByCategory(customId, true)
+          } else {
+            searchResults = await getPostsByCategory(category, false)
+          }
         } else if (query) {
           searchResults = await searchPostsByTitle(query)
         }

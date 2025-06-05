@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
+import { useAdmin } from "@/hooks/use-admin"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,12 +12,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { LogOut, PenSquare, User, UserCheck, Search } from "lucide-react"
+import { LogOut, PenSquare, User, UserCheck, Search, Settings } from "lucide-react"
 import SearchBar from "./search-bar"
 import UserAvatar from "./user-avatar"
+import { ThemeSwitcher } from "./theme-switcher"
 
 export default function Navbar() {
   const { user, logout } = useAuth()
+  const { isAdmin, isSuperAdmin } = useAdmin()
   const pathname = usePathname()
 
   const handleLogout = async () => {
@@ -39,16 +42,6 @@ export default function Navbar() {
         </div>
 
         <nav className="hidden md:flex items-center gap-6">
-          <Link
-            href="/"
-            className={
-              pathname === "/"
-                ? "font-bold"
-                : "text-primary-foreground/80 hover:text-primary-foreground transition-colors"
-            }
-          >
-            Home
-          </Link>
           {user && (
             <>
               <Link
@@ -71,11 +64,25 @@ export default function Navbar() {
               >
                 My Posts
               </Link>
+              {(isAdmin || isSuperAdmin) && (
+                <Link
+                  href="/admin"
+                  className={
+                    pathname.startsWith("/admin")
+                      ? "font-bold"
+                      : "text-primary-foreground/80 hover:text-primary-foreground transition-colors"
+                  }
+                >
+                  Admin
+                </Link>
+              )}
             </>
           )}
         </nav>
 
         <div className="flex items-center gap-4">
+          <ThemeSwitcher />
+
           <Button asChild variant="ghost" size="icon" className="md:hidden">
             <Link href="/search">
               <Search className="h-5 w-5" />
@@ -110,6 +117,17 @@ export default function Navbar() {
                       Following
                     </Link>
                   </DropdownMenuItem>
+                  {(isAdmin || isSuperAdmin) && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin">
+                          <Settings className="mr-2 h-4 w-4" />
+                          Admin Panel
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
@@ -120,13 +138,16 @@ export default function Navbar() {
             </>
           ) : (
             <>
+              <Button asChild variant="ghost" className="text-primary-foreground/80 hover:text-primary-foreground">
+                <Link href="/login">Log In</Link>
+              </Button>
               <Button
                 asChild
                 variant="outline"
                 className="bg-white text-primary hover:bg-white/90 border-primary"
                 size="sm"
               >
-                <Link href="/signup">Sign up</Link>
+                <Link href="/signup">Sign Up</Link>
               </Button>
             </>
           )}
