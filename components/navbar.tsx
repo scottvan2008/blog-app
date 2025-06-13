@@ -32,9 +32,9 @@ export default function Navbar() {
 
   return (
     <header className="bg-primary text-primary-foreground border-b">
-      <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-        <Link href="/" className="text-xl font-bold flex items-center">
-          <span className="text-2xl mr-1">💧</span> InkDrop
+      <div className="container mx-auto px-4 py-5 flex items-center justify-between">
+        <Link href="/" className="text-2xl font-bold flex items-center">
+          <span className="text-3xl mr-1">💧</span> InkDrop
         </Link>
 
         <div className="hidden md:flex items-center gap-6 flex-1 justify-center max-w-md mx-4">
@@ -48,8 +48,8 @@ export default function Navbar() {
                 href="/following"
                 className={
                   pathname === "/following"
-                    ? "font-bold"
-                    : "text-primary-foreground/80 hover:text-primary-foreground transition-colors"
+                    ? "text-lg font-bold"
+                    : "text-lg text-primary-foreground/80 hover:text-primary-foreground transition-colors"
                 }
               >
                 Following
@@ -58,8 +58,8 @@ export default function Navbar() {
                 href="/my-blogs"
                 className={
                   pathname === "/my-blogs"
-                    ? "font-bold"
-                    : "text-primary-foreground/80 hover:text-primary-foreground transition-colors"
+                    ? "text-lg font-bold"
+                    : "text-lg text-primary-foreground/80 hover:text-primary-foreground transition-colors"
                 }
               >
                 My Posts
@@ -69,8 +69,8 @@ export default function Navbar() {
                   href="/admin"
                   className={
                     pathname.startsWith("/admin")
-                      ? "font-bold"
-                      : "text-primary-foreground/80 hover:text-primary-foreground transition-colors"
+                      ? "text-lg font-bold"
+                      : "text-lg text-primary-foreground/80 hover:text-primary-foreground transition-colors"
                   }
                 >
                   Admin
@@ -91,9 +91,9 @@ export default function Navbar() {
 
           {user ? (
             <>
-              <Button asChild variant="secondary" size="sm" className="text-gray-800 font-medium">
+              <Button asChild variant="secondary" size="default" className="text-gray-800 font-medium text-base">
                 <Link href="/create">
-                  <PenSquare className="mr-2 h-4 w-4" />
+                  <PenSquare className="mr-2 h-5 w-5" />
                   Write
                 </Link>
               </Button>
@@ -138,14 +138,18 @@ export default function Navbar() {
             </>
           ) : (
             <>
-              <Button asChild variant="ghost" className="text-primary-foreground/80 hover:text-primary-foreground">
+              <Button
+                asChild
+                variant="ghost"
+                className="text-lg text-primary-foreground/80 hover:text-primary-foreground"
+              >
                 <Link href="/login">Log In</Link>
               </Button>
               <Button
                 asChild
                 variant="outline"
-                className="bg-white text-primary hover:bg-white/90 border-primary"
-                size="sm"
+                className="bg-white text-primary hover:bg-white/90 border-primary text-base"
+                size="default"
               >
                 <Link href="/signup">Sign Up</Link>
               </Button>
