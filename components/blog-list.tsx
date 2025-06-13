@@ -56,9 +56,9 @@ export default function BlogList() {
 
   if (loading) {
     return (
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {[...Array(6)].map((_, i) => (
-          <Card key={i} className="overflow-hidden">
+          <Card key={i} className="overflow-hidden max-w-xs mx-auto">
             <Skeleton className="h-48 w-full" />
             <CardHeader>
               <Skeleton className="h-6 w-3/4" />
@@ -131,17 +131,17 @@ export default function BlogList() {
       ) : (
         // Update the rendering to use filteredPosts instead of posts
         // And add category badge to each post card
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {filteredPosts.map((post) => (
             <Link href={`/blog/${post.id}`} key={post.id}>
-              <Card className="overflow-hidden h-full hover:shadow-md transition-shadow">
+              <Card className="overflow-hidden h-full hover:shadow-md transition-shadow max-w-xs mx-auto">
                 {post.imageUrl && (
                   <div className="relative h-48 w-full">
                     <Image src={post.imageUrl || "/placeholder.svg"} alt={post.title} fill className="object-cover" />
                   </div>
                 )}
                 <CardHeader>
-                  <CardTitle className="line-clamp-2">{post.title}</CardTitle>
+                  <CardTitle className="line-clamp-2 leading-normal min-h-[3rem]">{post.title}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground line-clamp-3">{post.content.replace(/<[^>]*>/g, "")}</p>
