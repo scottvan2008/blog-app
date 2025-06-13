@@ -107,9 +107,11 @@ export default function BlogList() {
                     <h2 className="text-xl font-semibold">All Posts</h2>
                     <div className="w-[200px]">
                         <Select
-                            value={categoryFilter || ""}
+                            value={categoryFilter || "all"}
                             onValueChange={(value) =>
-                                setCategoryFilter(value || null)
+                                setCategoryFilter(
+                                    value === "all" ? null : value
+                                )
                             }
                         >
                             <SelectTrigger>
