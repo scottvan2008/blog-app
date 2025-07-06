@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { categories } from "@/lib/categories"
 import {
   addCustomCategory,
@@ -20,7 +21,7 @@ import {
   getCategoryCounts,
   type CustomCategory,
 } from "@/lib/category-service"
-import { Tag, Plus, MoreHorizontal, Edit, Trash2 } from "lucide-react"
+import { Tag, Plus, MoreHorizontal, Edit, Trash2, BarChart3 } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -197,6 +198,70 @@ export default function AdminCategories() {
     setDialogOpen(true)
   }
 
+  // Prepare chart data
+  const getChartData = () => {
+    const allCategories = [
+      ...categories.map((cat) => ({
+        name: cat.name,
+        posts: categoryCounts[cat.id] || 0,
+        type: "Default",
+      })),
+      ...customCategories.map((cat) => ({
+        name: cat.name,
+        posts: categoryCounts[`custom_${cat.id}`] || 0,
+        type: "Custom",
+      })),
+    ]
+
+    // Sort by post count (descending) and take top 10
+    return allCategories
+      .filter((cat) => cat.posts > 0) // Only show categories with posts
+      .sort((a, b) => b.posts - a.posts)
+      .slice(0, 10)
+  }
+
+  const chartData = getChartData()
+
+  // Simple CSS-based bar chart component
+  const SimpleBarChart = ({ data }: { data: Array<{ name: string; posts: number }> }) => {
+    if (data.length === 0) {
+      return (
+        <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+          <div className="text-center">
+            <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p>No data available</p>
+            <p className="text-sm">Create some blog posts to see the category distribution</p>
+          </div>
+        </div>
+      )
+    }
+
+    const maxPosts = Math.max(...data.map((d) => d.posts))
+
+    return (
+      <div className="space-y-4">
+        {data.map((item, index) => (
+          <div key={index} className="space-y-2">
+            <div className="flex justify-between items-center text-sm">
+              <span className="font-medium truncate max-w-[200px]" title={item.name}>
+                {item.name}
+              </span>
+              <span className="text-muted-foreground">{item.posts} posts</span>
+            </div>
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+              <div
+                className="bg-blue-600 h-3 rounded-full transition-all duration-500 ease-out"
+                style={{
+                  width: `${(item.posts / maxPosts) * 100}%`,
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   if (roleLoading) {
     return null // AdminLayout will show loading state
   }
@@ -228,6 +293,20 @@ export default function AdminCategories() {
         </div>
       ) : (
         <div className="space-y-6">
+          {/* Category Distribution Chart */}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Category Distribution
+              </CardTitle>
+              <CardDescription>Number of posts by category (top 10)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <SimpleBarChart data={chartData} />
+            </CardContent>
+          </Card>
+
           {/* Default Categories */}
           <div>
             <h2 className="text-xl font-semibold mb-4">Default Categories</h2>

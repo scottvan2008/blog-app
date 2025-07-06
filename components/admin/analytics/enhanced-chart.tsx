@@ -26,6 +26,8 @@ export function EnhancedChart({
   showTooltip = true,
   height = 300,
 }: EnhancedChartProps) {
+  console.log("EnhancedChart received data:", data)
+
   if (!data || data.length === 0) {
     return (
       <Card className={className}>
@@ -49,22 +51,31 @@ export function EnhancedChart({
     )
   }
 
-  // Find the maximum value for scaling
+  // For multi-line charts, we need to identify all numeric keys
+  const sampleItem = data[0]
+  const numericKeys = Object.keys(sampleItem).filter(
+    (key) => key !== "date" && key !== "name" && typeof sampleItem[key] === "number",
+  )
+
+  console.log("Numeric keys found:", numericKeys)
+
+  // Find the maximum value for scaling across all numeric fields
   const maxValue = Math.max(
     ...data.map((item) => {
       if (typeof item === "object") {
-        const numericValues = Object.values(item).filter((val) => typeof val === "number")
-        return numericValues.length > 0 ? Math.max(...(numericValues as number[])) : 0
+        const numericValues = numericKeys.map((key) => item[key] || 0)
+        return numericValues.length > 0 ? Math.max(...numericValues) : 0
       }
       return typeof item === "number" ? item : 0
     }),
   )
 
   const minValue = Math.min(
+    0, // Always include 0 as minimum
     ...data.map((item) => {
       if (typeof item === "object") {
-        const numericValues = Object.values(item).filter((val) => typeof val === "number")
-        return numericValues.length > 0 ? Math.min(...(numericValues as number[])) : 0
+        const numericValues = numericKeys.map((key) => item[key] || 0)
+        return numericValues.length > 0 ? Math.min(...numericValues) : 0
       }
       return typeof item === "number" ? item : 0
     }),
@@ -162,43 +173,50 @@ export function EnhancedChart({
             {/* Chart content */}
             {type === "line" && (
               <g>
-                {/* Line path */}
-                {data.length > 1 && (
-                  <path
-                    d={data
-                      .map((item, index) => {
-                        const x = padding.left + (index * chartWidth) / Math.max(data.length - 1, 1)
-                        const value =
-                          typeof item === "object" ? Object.values(item).find((v) => typeof v === "number") || 0 : item
-                        const y =
-                          padding.top +
-                          chartHeight -
-                          (((value as number) - minValue) / (maxValue - minValue)) * chartHeight
-                        return `${index === 0 ? "M" : "L"} ${x} ${y}`
-                      })
-                      .join(" ")}
-                    fill="none"
-                    stroke={colors[0]}
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                )}
+                {/* Render multiple lines for multi-metric data */}
+                {numericKeys.map((key, keyIndex) => (
+                  <g key={`line-${key}`}>
+                    {/* Line path */}
+                    {data.length > 1 && (
+                      <path
+                        d={data
+                          .map((item, index) => {
+                            const x = padding.left + (index * chartWidth) / Math.max(data.length - 1, 1)
+                            const value = item[key] || 0
+                            const y =
+                              padding.top + chartHeight - ((value - minValue) / (maxValue - minValue)) * chartHeight
+                            return `${index === 0 ? "M" : "L"} ${x} ${y}`
+                          })
+                          .join(" ")}
+                        fill="none"
+                        stroke={colors[keyIndex % colors.length]}
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    )}
 
-                {/* Data points */}
-                {data.map((item, index) => {
-                  const x = padding.left + (index * chartWidth) / Math.max(data.length - 1, 1)
-                  const value =
-                    typeof item === "object" ? Object.values(item).find((v) => typeof v === "number") || 0 : item
-                  const y =
-                    padding.top + chartHeight - (((value as number) - minValue) / (maxValue - minValue)) * chartHeight
-                  return (
-                    <g key={`point-${index}`}>
-                      <circle cx={x} cy={y} r="4" fill="white" stroke={colors[0]} strokeWidth="2" />
-                      <circle cx={x} cy={y} r="2" fill={colors[0]} />
-                    </g>
-                  )
-                })}
+                    {/* Data points */}
+                    {data.map((item, index) => {
+                      const x = padding.left + (index * chartWidth) / Math.max(data.length - 1, 1)
+                      const value = item[key] || 0
+                      const y = padding.top + chartHeight - ((value - minValue) / (maxValue - minValue)) * chartHeight
+                      return (
+                        <g key={`point-${key}-${index}`}>
+                          <circle
+                            cx={x}
+                            cy={y}
+                            r="3"
+                            fill="white"
+                            stroke={colors[keyIndex % colors.length]}
+                            strokeWidth="2"
+                          />
+                          <circle cx={x} cy={y} r="1.5" fill={colors[keyIndex % colors.length]} />
+                        </g>
+                      )
+                    })}
+                  </g>
+                ))}
               </g>
             )}
 
@@ -310,17 +328,14 @@ export function EnhancedChart({
           </svg>
 
           {/* Legend for multi-line charts */}
-          {type === "line" && data.length > 0 && typeof data[0] === "object" && Object.keys(data[0]).length > 2 && (
-            <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm border rounded-lg p-2 shadow-sm">
-              {Object.keys(data[0])
-                .filter((key) => key !== "date" && key !== "name")
-                .slice(0, 4)
-                .map((key, index) => (
-                  <div key={key} className="flex items-center gap-2 text-xs">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
-                    <span className="capitalize">{key}</span>
-                  </div>
-                ))}
+          {type === "line" && numericKeys.length > 1 && (
+            <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm border rounded-lg p-3 shadow-sm">
+              {numericKeys.map((key, index) => (
+                <div key={key} className="flex items-center gap-2 text-xs mb-1 last:mb-0">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
+                  <span className="capitalize font-medium">{key.replace(/([A-Z])/g, " $1").trim()}</span>
+                </div>
+              ))}
             </div>
           )}
         </div>

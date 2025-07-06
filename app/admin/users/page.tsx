@@ -1,264 +1,232 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
+import { useAuth } from "@/lib/auth-context"
 import { useAdmin } from "@/hooks/use-admin"
 import AdminLayout from "@/components/admin/admin-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Skeleton } from "@/components/ui/skeleton"
+import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Badge } from "@/components/ui/badge"
-import { getAllUsers, updateUserRole, updateUserBanStatus, UserRole } from "@/lib/roles-service"
-import { formatDistanceToNow } from "date-fns"
-import { Search, MoreHorizontal, User, ShieldCheck, ShieldX, Ban } from "lucide-react"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { useToast } from "@/components/ui/use-toast"
-import UserAvatar from "@/components/user-avatar"
+import { Skeleton } from "@/components/ui/skeleton"
+import { MoreHorizontal, Search, Users, Shield, Ban, UserCheck } from "lucide-react"
+import { toast } from "@/hooks/use-toast"
+import { BanConfirmationDialog } from "@/components/admin/ban-confirmation-dialog"
+import { collection, getDocs, doc, updateDoc, query } from "firebase/firestore"
+import { db } from "@/lib/firebase"
 
-interface AppUser {
+interface User {
   id: string
-  displayName: string
   email: string
+  displayName: string
   photoURL?: string
-  role?: string
-  isBanned?: boolean
+  role: string
+  banned: boolean
   createdAt: any
 }
 
-export default function AdminUsers() {
-  const router = useRouter()
-  const { isSuperAdmin, loading: roleLoading } = useAdmin()
-  const [users, setUsers] = useState<AppUser[]>([])
-  const [filteredUsers, setFilteredUsers] = useState<AppUser[]>([])
-  const [searchQuery, setSearchQuery] = useState("")
+export default function AdminUsersPage() {
+  const { user } = useAuth()
+  const { isAdmin } = useAdmin()
+  const [users, setUsers] = useState<User[]>([])
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
-  const [actionDialogOpen, setActionDialogOpen] = useState(false)
-  const [selectedUser, setSelectedUser] = useState<AppUser | null>(null)
-  const [actionType, setActionType] = useState<"promote" | "demote" | "ban" | "unban" | null>(null)
-  const [isProcessing, setIsProcessing] = useState(false)
-  const { toast } = useToast()
+  const [searchTerm, setSearchTerm] = useState("")
+  const [banDialogOpen, setBanDialogOpen] = useState(false)
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [banAction, setBanAction] = useState<"ban" | "unban">("ban")
+  const [processing, setProcessing] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const allUsers = await getAllUsers()
-        setUsers(allUsers)
-        setFilteredUsers(allUsers)
-      } catch (error) {
-        console.error("Error fetching users:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    if (!roleLoading && isSuperAdmin) {
+    if (isAdmin) {
       fetchUsers()
     }
-  }, [isSuperAdmin, roleLoading])
+  }, [isAdmin])
 
   useEffect(() => {
-    if (searchQuery.trim() === "") {
-      setFilteredUsers(users)
-    } else {
-      const query = searchQuery.toLowerCase()
-      const filtered = users.filter(
-        (user) => user.displayName?.toLowerCase().includes(query) || user.email?.toLowerCase().includes(query),
-      )
-      setFilteredUsers(filtered)
-    }
-  }, [searchQuery, users])
+    const filtered = users.filter(
+      (user) =>
+        user.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email?.toLowerCase().includes(searchTerm.toLowerCase()),
+    )
+    setFilteredUsers(filtered)
+  }, [users, searchTerm])
 
-  const handleUserAction = async () => {
-    if (!selectedUser || !actionType) return
-
-    setIsProcessing(true)
+  const fetchUsers = async () => {
     try {
-      if (actionType === "promote") {
-        await updateUserRole(selectedUser.id, UserRole.ADMIN)
+      setLoading(true)
+      const usersQuery = query(collection(db, "users"))
+      const querySnapshot = await getDocs(usersQuery)
 
-        // Update user in the lists
-        const updatedUsers = users.map((user) =>
-          user.id === selectedUser.id ? { ...user, role: UserRole.ADMIN } : user,
-        )
-        setUsers(updatedUsers)
-        setFilteredUsers(
-          updatedUsers.filter(
-            (user) =>
-              user.displayName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              user.email?.toLowerCase().includes(searchQuery.toLowerCase()),
-          ),
-        )
+      const usersData = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as User[]
 
-        toast({
-          title: "User promoted",
-          description: `${selectedUser.displayName} has been promoted to Admin`,
-        })
-      } else if (actionType === "demote") {
-        await updateUserRole(selectedUser.id, UserRole.USER)
-
-        // Update user in the lists
-        const updatedUsers = users.map((user) =>
-          user.id === selectedUser.id ? { ...user, role: UserRole.USER } : user,
-        )
-        setUsers(updatedUsers)
-        setFilteredUsers(
-          updatedUsers.filter(
-            (user) =>
-              user.displayName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              user.email?.toLowerCase().includes(searchQuery.toLowerCase()),
-          ),
-        )
-
-        toast({
-          title: "User demoted",
-          description: `${selectedUser.displayName} has been demoted to regular user`,
-        })
-      } else if (actionType === "ban") {
-        await updateUserBanStatus(selectedUser.id, true)
-
-        // Update user in the lists
-        const updatedUsers = users.map((user) => (user.id === selectedUser.id ? { ...user, isBanned: true } : user))
-        setUsers(updatedUsers)
-        setFilteredUsers(
-          updatedUsers.filter(
-            (user) =>
-              user.displayName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              user.email?.toLowerCase().includes(searchQuery.toLowerCase()),
-          ),
-        )
-
-        toast({
-          title: "User banned",
-          description: `${selectedUser.displayName} has been banned`,
-        })
-      } else if (actionType === "unban") {
-        await updateUserBanStatus(selectedUser.id, false)
-
-        // Update user in the lists
-        const updatedUsers = users.map((user) => (user.id === selectedUser.id ? { ...user, isBanned: false } : user))
-        setUsers(updatedUsers)
-        setFilteredUsers(
-          updatedUsers.filter(
-            (user) =>
-              user.displayName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              user.email?.toLowerCase().includes(searchQuery.toLowerCase()),
-          ),
-        )
-
-        toast({
-          title: "User unbanned",
-          description: `${selectedUser.displayName} has been unbanned`,
-        })
-      }
+      setUsers(usersData)
     } catch (error) {
-      console.error("Error processing user action:", error)
+      console.error("Error fetching users:", error)
       toast({
         title: "Error",
-        description: "Failed to process the action. Please try again.",
+        description: "Failed to fetch users",
         variant: "destructive",
       })
     } finally {
-      setIsProcessing(false)
-      setActionDialogOpen(false)
-      setSelectedUser(null)
-      setActionType(null)
+      setLoading(false)
     }
   }
 
-  const getActionDialogContent = () => {
-    if (!selectedUser || !actionType) return null
+  const handleBanUser = async (targetUser: User) => {
+    setSelectedUser(targetUser)
+    setBanAction(targetUser.banned ? "unban" : "ban")
+    setBanDialogOpen(true)
+  }
 
-    let title = ""
-    let description = ""
+  const confirmBanAction = async () => {
+    if (!selectedUser) return
 
-    switch (actionType) {
-      case "promote":
-        title = "Promote User to Admin"
-        description = `Are you sure you want to promote ${selectedUser.displayName} to Admin? They will have access to the admin dashboard and management features.`
-        break
-      case "demote":
-        title = "Demote Admin to Regular User"
-        description = `Are you sure you want to demote ${selectedUser.displayName} to a regular user? They will lose access to all admin features.`
-        break
-      case "ban":
-        title = "Ban User"
-        description = `Are you sure you want to ban ${selectedUser.displayName}? They will no longer be able to log in or use the platform.`
-        break
-      case "unban":
-        title = "Unban User"
-        description = `Are you sure you want to unban ${selectedUser.displayName}? They will regain access to the platform.`
-        break
+    setProcessing(selectedUser.id)
+    try {
+      const userRef = doc(db, "users", selectedUser.id)
+      await updateDoc(userRef, {
+        banned: banAction === "ban",
+      })
+
+      // Update local state
+      setUsers(users.map((u) => (u.id === selectedUser.id ? { ...u, banned: banAction === "ban" } : u)))
+
+      toast({
+        title: "Success",
+        description: `User ${banAction === "ban" ? "banned" : "unbanned"} successfully`,
+      })
+    } catch (error) {
+      console.error(`Error ${banAction}ning user:`, error)
+      toast({
+        title: "Error",
+        description: `Failed to ${banAction} user`,
+        variant: "destructive",
+      })
+    } finally {
+      setProcessing(null)
     }
+  }
 
+  const handlePromoteUser = async (targetUser: User) => {
+    if (!confirm(`Are you sure you want to promote ${targetUser.displayName} to admin?`)) return
+
+    setProcessing(targetUser.id)
+    try {
+      const userRef = doc(db, "users", targetUser.id)
+      await updateDoc(userRef, {
+        role: "admin",
+      })
+
+      // Update local state
+      setUsers(users.map((u) => (u.id === targetUser.id ? { ...u, role: "admin" } : u)))
+
+      toast({
+        title: "Success",
+        description: "User promoted to admin successfully",
+      })
+    } catch (error) {
+      console.error("Error promoting user:", error)
+      toast({
+        title: "Error",
+        description: "Failed to promote user",
+        variant: "destructive",
+      })
+    } finally {
+      setProcessing(null)
+    }
+  }
+
+  const handleDemoteUser = async (targetUser: User) => {
+    if (!confirm(`Are you sure you want to demote ${targetUser.displayName} from admin?`)) return
+
+    setProcessing(targetUser.id)
+    try {
+      const userRef = doc(db, "users", targetUser.id)
+      await updateDoc(userRef, {
+        role: "user",
+      })
+
+      // Update local state
+      setUsers(users.map((u) => (u.id === targetUser.id ? { ...u, role: "user" } : u)))
+
+      toast({
+        title: "Success",
+        description: "User demoted from admin successfully",
+      })
+    } catch (error) {
+      console.error("Error demoting user:", error)
+      toast({
+        title: "Error",
+        description: "Failed to demote user",
+        variant: "destructive",
+      })
+    } finally {
+      setProcessing(null)
+    }
+  }
+
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return "Unknown"
+    try {
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
+      return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      })
+    } catch (error) {
+      return "Unknown"
+    }
+  }
+
+  if (!isAdmin) {
     return (
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription>{description}</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isProcessing}>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={handleUserAction}
-            disabled={isProcessing}
-            className={actionType === "ban" ? "bg-red-600 hover:bg-red-700" : ""}
-          >
-            {isProcessing ? "Processing..." : "Confirm"}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
+      <AdminLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
+            <p className="text-muted-foreground">You don't have permission to access this page.</p>
+          </div>
+        </div>
+      </AdminLayout>
     )
-  }
-
-  if (roleLoading) {
-    return null // AdminLayout will show loading state
-  }
-
-  if (!isSuperAdmin) {
-    router.push("/admin")
-    return null
   }
 
   return (
     <AdminLayout>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Manage Users</h1>
-        <p className="text-muted-foreground">View and manage all users.</p>
-      </div>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">User Management</h1>
+            <p className="text-muted-foreground">Manage users, roles, and permissions</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">{users.length} total users</span>
+          </div>
+        </div>
 
-      <div className="mb-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+        {/* Search */}
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search users by name or email..."
+            placeholder="Search users..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-      </div>
 
-      {loading ? (
-        <div className="space-y-4">
-          <Skeleton className="h-12 w-full" />
-          {[...Array(5)].map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full" />
-          ))}
-        </div>
-      ) : (
-        <div className="border rounded-md">
+        {/* Users Table */}
+        <div className="border rounded-lg">
           <Table>
             <TableHeader>
               <TableRow>
@@ -267,129 +235,104 @@ export default function AdminUsers() {
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Joined</TableHead>
-                <TableHead className="w-[100px]">Actions</TableHead>
+                <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredUsers.length === 0 ? (
+              {loading ? (
+                [...Array(5)].map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell>
+                      <div className="flex items-center space-x-3">
+                        <Skeleton className="h-8 w-8 rounded-full" />
+                        <Skeleton className="h-4 w-32" />
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-48" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-6 w-16" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-6 w-16" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-24" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-8 w-8" />
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : filteredUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    No users found
+                  <TableCell colSpan={6} className="text-center py-8">
+                    <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-muted-foreground">
+                      {searchTerm ? "No users found matching your search." : "No users found."}
+                    </p>
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredUsers.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell className="flex items-center gap-2">
-                      <UserAvatar src={user.photoURL} name={user.displayName} size="sm" />
-                      <span className="font-medium">{user.displayName || "User"}</span>
-                    </TableCell>
-                    <TableCell>{user.email}</TableCell>
+                filteredUsers.map((targetUser) => (
+                  <TableRow key={targetUser.id}>
                     <TableCell>
-                      <Badge
-                        variant={
-                          user.role === UserRole.SUPER_ADMIN
-                            ? "default"
-                            : user.role === UserRole.ADMIN
-                              ? "secondary"
-                              : "outline"
-                        }
-                      >
-                        {user.role === UserRole.SUPER_ADMIN
-                          ? "Super Admin"
-                          : user.role === UserRole.ADMIN
-                            ? "Admin"
-                            : "User"}
+                      <div className="flex items-center space-x-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={targetUser.photoURL || "/placeholder.svg"} alt={targetUser.displayName} />
+                          <AvatarFallback>
+                            {(targetUser.displayName || targetUser.email || "U")[0].toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="font-medium">{targetUser.displayName || "No name"}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{targetUser.email}</TableCell>
+                    <TableCell>
+                      <Badge variant={targetUser.role === "admin" ? "default" : "secondary"}>
+                        {targetUser.role || "user"}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {user.isBanned ? (
-                        <Badge variant="destructive">Banned</Badge>
-                      ) : (
-                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                          Active
-                        </Badge>
+                      <Badge variant={targetUser.banned ? "destructive" : "outline"}>
+                        {targetUser.banned ? "Banned" : "Active"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{formatDate(targetUser.createdAt)}</TableCell>
+                    <TableCell>
+                      {targetUser.id !== user?.uid && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" disabled={processing === targetUser.id}>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {targetUser.role === "admin" ? (
+                              <DropdownMenuItem
+                                onClick={() => handleDemoteUser(targetUser)}
+                                className="text-orange-600"
+                              >
+                                <UserCheck className="h-4 w-4 mr-2" />
+                                Demote from Admin
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem onClick={() => handlePromoteUser(targetUser)} className="text-blue-600">
+                                <Shield className="h-4 w-4 mr-2" />
+                                Promote to Admin
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem
+                              onClick={() => handleBanUser(targetUser)}
+                              className={targetUser.banned ? "text-green-600" : "text-red-600"}
+                            >
+                              <Ban className="h-4 w-4 mr-2" />
+                              {targetUser.banned ? "Unban User" : "Ban User"}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       )}
-                    </TableCell>
-                    <TableCell>
-                      {user.createdAt &&
-                        formatDistanceToNow(
-                          typeof user.createdAt.toDate === "function"
-                            ? user.createdAt.toDate()
-                            : new Date(user.createdAt),
-                          { addSuffix: true },
-                        )}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem asChild>
-                            <Link href={`/profile/${user.id}`}>
-                              <User className="mr-2 h-4 w-4" />
-                              View Profile
-                            </Link>
-                          </DropdownMenuItem>
-
-                          {/* Don't allow actions on super admins */}
-                          {user.role !== UserRole.SUPER_ADMIN && (
-                            <>
-                              {user.role !== UserRole.ADMIN ? (
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    setSelectedUser(user)
-                                    setActionType("promote")
-                                    setActionDialogOpen(true)
-                                  }}
-                                >
-                                  <ShieldCheck className="mr-2 h-4 w-4" />
-                                  Promote to Admin
-                                </DropdownMenuItem>
-                              ) : (
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    setSelectedUser(user)
-                                    setActionType("demote")
-                                    setActionDialogOpen(true)
-                                  }}
-                                >
-                                  <ShieldX className="mr-2 h-4 w-4" />
-                                  Remove Admin
-                                </DropdownMenuItem>
-                              )}
-
-                              {!user.isBanned ? (
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    setSelectedUser(user)
-                                    setActionType("ban")
-                                    setActionDialogOpen(true)
-                                  }}
-                                  className="text-red-600 focus:text-red-600"
-                                >
-                                  <Ban className="mr-2 h-4 w-4" />
-                                  Ban User
-                                </DropdownMenuItem>
-                              ) : (
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    setSelectedUser(user)
-                                    setActionType("unban")
-                                    setActionDialogOpen(true)
-                                  }}
-                                >
-                                  <Ban className="mr-2 h-4 w-4" />
-                                  Unban User
-                                </DropdownMenuItem>
-                              )}
-                            </>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))
@@ -397,11 +340,16 @@ export default function AdminUsers() {
             </TableBody>
           </Table>
         </div>
-      )}
 
-      <AlertDialog open={actionDialogOpen} onOpenChange={setActionDialogOpen}>
-        {getActionDialogContent()}
-      </AlertDialog>
+        {/* Ban Confirmation Dialog */}
+        <BanConfirmationDialog
+          isOpen={banDialogOpen}
+          onClose={() => setBanDialogOpen(false)}
+          onConfirm={confirmBanAction}
+          userName={selectedUser?.displayName || selectedUser?.email || "Unknown User"}
+          action={banAction}
+        />
+      </div>
     </AdminLayout>
   )
 }

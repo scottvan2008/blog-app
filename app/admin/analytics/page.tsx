@@ -84,6 +84,7 @@ export default function AnalyticsPage() {
 
         // Create sorted array of dates
         const sortedDates = Array.from(dates).sort()
+        console.log("All dates found:", sortedDates)
 
         // Create activity data array with all metrics
         const activity = sortedDates.map((date) => ({
@@ -94,6 +95,7 @@ export default function AnalyticsPage() {
           users: analytics.usersPerDay?.[date] || 0,
         }))
 
+        console.log("Processed activity data:", activity)
         setActivityData(activity)
       } catch (err) {
         console.error("Error fetching analytics data:", err)

@@ -10,58 +10,106 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { useToast } from "@/components/ui/use-toast"
-// Add import for GoogleSignInButton
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Loader2, AlertCircle } from "lucide-react"
 import GoogleSignInButton from "@/components/google-signin-button"
 
 export default function SignupPage() {
-  const [name, setName] = useState("")
+  const [displayName, setDisplayName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const { signup } = useAuth()
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
+  const { signup, loginWithGoogle } = useAuth()
   const router = useRouter()
-  const { toast } = useToast()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
+    if (!displayName || !email || !password || !confirmPassword) {
+      setError("Please fill in all fields")
+      return
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match")
+      return
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long")
+      return
+    }
+
+    setLoading(true)
+    setError("")
 
     try {
-      await signup(email, password, name)
-      toast({
-        title: "Account created successfully",
-        description: "You have been signed up and logged in.",
-      })
+      await signup(email, password, displayName)
       router.push("/")
     } catch (error: any) {
-      toast({
-        title: "Error creating account",
-        description: error.message || "Something went wrong. Please try again.",
-        variant: "destructive",
-      })
+      console.error("Signup error:", error)
+      if (error.code === "auth/email-already-in-use") {
+        setError("An account with this email already exists")
+      } else if (error.code === "auth/invalid-email") {
+        setError("Invalid email address")
+      } else if (error.code === "auth/weak-password") {
+        setError("Password is too weak")
+      } else {
+        setError(error.message || "Failed to create account. Please try again.")
+      }
     } finally {
-      setIsLoading(false)
+      setLoading(false)
+    }
+  }
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true)
+    setError("")
+
+    try {
+      await loginWithGoogle()
+      router.push("/")
+    } catch (error: any) {
+      console.error("Google sign-in error:", error)
+      if (error.name === "UserBannedError") {
+        setError("Your account has been banned. Please contact support for assistance.")
+      } else if (error.code === "auth/popup-closed-by-user") {
+        setError("Sign-in was cancelled")
+      } else if (error.code === "auth/popup-blocked") {
+        setError("Pop-up was blocked. Please allow pop-ups and try again")
+      } else {
+        setError(error.message || "Failed to sign in with Google. Please try again.")
+      }
+    } finally {
+      setLoading(false)
     }
   }
 
   return (
-    <div className="container mx-auto flex items-center justify-center min-h-[80vh] px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl">Sign Up</CardTitle>
-          <CardDescription>Create a new account to get started</CardDescription>
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold text-center">Create your account</CardTitle>
+          <CardDescription className="text-center">Enter your details to get started with InkDrop</CardDescription>
         </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
+        <CardContent className="space-y-4">
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="displayName">Display Name</Label>
               <Input
-                id="name"
+                id="displayName"
                 type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="John Doe"
+                placeholder="Enter your display name"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                disabled={loading}
                 required
               />
             </div>
@@ -70,9 +118,10 @@ export default function SignupPage() {
               <Input
                 id="email"
                 type="email"
+                placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="john@example.com"
+                disabled={loading}
                 required
               />
             </div>
@@ -81,39 +130,56 @@ export default function SignupPage() {
               <Input
                 id="password"
                 type="password"
+                placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                disabled={loading}
                 required
-                minLength={6}
               />
             </div>
-          </CardContent>
-          {/* Add Google sign-in button after the regular signup button */}
-          <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Creating account..." : "Sign Up"}
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="Confirm your password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                disabled={loading}
+                required
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating account...
+                </>
+              ) : (
+                "Create account"
+              )}
             </Button>
+          </form>
 
-            <div className="relative w-full">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
-              </div>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
             </div>
-
-            <GoogleSignInButton />
-
-            <div className="text-center text-sm">
-              Already have an account?{" "}
-              <Link href="/login" className="underline text-primary">
-                Log in
-              </Link>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
             </div>
-          </CardFooter>
-        </form>
+          </div>
+
+          <GoogleSignInButton onClick={handleGoogleSignIn} disabled={loading} />
+        </CardContent>
+        <CardFooter className="flex flex-col space-y-2">
+          <div className="text-sm text-center text-muted-foreground">
+            Already have an account?{" "}
+            <Link href="/login" className="font-medium text-primary hover:underline">
+              Sign in
+            </Link>
+          </div>
+        </CardFooter>
       </Card>
     </div>
   )
