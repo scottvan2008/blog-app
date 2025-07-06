@@ -34,30 +34,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userRole, setUserRole] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // Function to get user role from Firestore
-  const getUserRole = async (userId: string): Promise<string | null> => {
+  // Function to get user data from Firestore
+  const getUserData = async (userId: string): Promise<{ role: string | null; isBanned: boolean }> => {
     try {
       const userRef = doc(db, "users", userId)
       const userSnap = await getDoc(userRef)
 
       if (userSnap.exists()) {
         const userData = userSnap.data()
-        console.log("User data from Firestore:", userData) // Debug log
-        return userData.role || "user"
+        return {
+          role: userData.role || "user",
+          isBanned: userData.isBanned || false,
+        }
       }
-      return "user"
+      return { role: "user", isBanned: false }
     } catch (error) {
-      console.error("Error getting user role:", error)
-      return "user"
+      console.error("Error getting user data:", error)
+      return { role: "user", isBanned: false }
     }
   }
 
   // Function to refresh user role
   const refreshUserRole = async () => {
     if (user) {
-      const role = await getUserRole(user.uid)
-      console.log("Refreshed user role:", role) // Debug log
+      const { role } = await getUserData(user.uid)
       setUserRole(role)
+    }
+  }
+
+  // Function to check if user is banned and sign them out if they are
+  const checkUserBanStatus = async (user: User) => {
+    const { isBanned } = await getUserData(user.uid)
+    if (isBanned) {
+      await signOut(auth)
+      const error = new Error("Your account has been banned. Please contact support for assistance.")
+      error.name = "UserBannedError"
+      throw error
     }
   }
 
@@ -75,15 +87,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      console.log("Auth state changed:", user?.email) // Debug log
-
       if (user) {
-        setUser(user)
-
         try {
-          // Get user role
-          const role = await getUserRole(user.uid)
-          console.log("User role:", role) // Debug log
+          // Check if user is banned first
+          await checkUserBanStatus(user)
+
+          setUser(user)
+
+          // Get user role and ban status
+          const { role } = await getUserData(user.uid)
           setUserRole(role)
 
           // Check if user exists in Firestore
@@ -97,14 +109,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               email: user.email,
               photoURL: user.photoURL,
               role: "user", // Default role
+              isBanned: false, // Default not banned
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
             })
             setUserRole("user")
           }
         } catch (error) {
-          console.error("Error checking/creating user document:", error)
-          setUserRole("user")
+          // If user is banned, they'll be signed out and we set user to null
+          // No need to log this as it's expected behavior for banned users
+          setUser(null)
+          setUserRole(null)
         }
       } else {
         setUser(null)
@@ -132,6 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: userCredential.user.email,
           photoURL: userCredential.user.photoURL,
           role: "user", // Default role
+          isBanned: false, // Default not banned
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         })
@@ -146,9 +162,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password)
-      // Role will be set in the onAuthStateChanged listener
+
+      // Check if user is banned immediately after login
+      if (userCredential.user) {
+        await checkUserBanStatus(userCredential.user)
+      }
     } catch (error) {
-      console.error("Error logging in:", error)
+      // Only log actual errors, not ban messages
+      if (error instanceof Error && error.name !== "UserBannedError") {
+        console.error("Error logging in:", error)
+      }
       throw error
     }
   }
@@ -158,8 +181,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const provider = new GoogleAuthProvider()
       const result = await signInWithPopup(auth, provider)
 
-      // Create or update user document in Firestore
+      // Check if user is banned immediately after Google login
       if (result.user) {
+        await checkUserBanStatus(result.user)
+
+        // Create or update user document in Firestore
         const userRef = doc(db, "users", result.user.uid)
         const userSnap = await getDoc(userRef)
 
@@ -170,6 +196,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             email: result.user.email,
             photoURL: result.user.photoURL,
             role: "user", // Default role
+            isBanned: false, // Default not banned
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           })
@@ -187,12 +214,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             { merge: true },
           )
           // Get existing role
-          const role = await getUserRole(result.user.uid)
+          const { role } = await getUserData(result.user.uid)
           setUserRole(role)
         }
       }
     } catch (error) {
-      console.error("Error with Google login:", error)
+      // Only log actual errors, not ban messages
+      if (error instanceof Error && error.name !== "UserBannedError") {
+        console.error("Error with Google login:", error)
+      }
       throw error
     }
   }
