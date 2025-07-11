@@ -19,6 +19,7 @@ import RichTextEditor from "@/components/rich-text-editor"
 
 // Add import
 import CategorySelector from "@/components/category-selector"
+import MDEditor from '@uiw/react-md-editor';
 
 export default function EditBlogPage({ params }: { params: { id: string } }) {
   const [title, setTitle] = useState("")
@@ -141,13 +142,24 @@ export default function EditBlogPage({ params }: { params: { id: string } }) {
 
     setIsLoading(true)
 
+    let coverFile = imageFile
+    if (!coverFile && imagePreview && imagePreview.startsWith("http")) {
+      try {
+        coverFile = await urlToFile(imagePreview, "cover.jpg")
+      } catch (e) {
+        toast({ title: "图片转文件失败", description: String(e), variant: "destructive" })
+        setIsLoading(false)
+        return
+      }
+    }
+
     try {
       await updateBlogPost(
         params.id,
         title,
         content,
         category,
-        imageFile || undefined,
+          coverFile || undefined,
         currentImageUrl,
         customCategoryId, // Add this parameter
       )
@@ -169,6 +181,37 @@ export default function EditBlogPage({ params }: { params: { id: string } }) {
       setIsLoading(false)
     }
   }
+
+  function extractFirstImageSrc(md: string): string | null {
+    const mdImg = md.match(/!\[.*?\]\((.*?)\)/)
+    if (mdImg) return mdImg[1]
+    const htmlImg = md.match(/<img[^>]*src=["']([^"']+)["'][^>]*>/i)
+    if (htmlImg) return htmlImg[1]
+    return null
+  }
+
+  const handleContentChange = (val: string) => {
+    setContent(val)
+    if (!imageFile) {
+      const imgSrc = extractFirstImageSrc(val)
+      setImagePreview(imgSrc || null)
+      setCurrentImageUrl(imgSrc || undefined)
+    }
+  }
+
+  async function urlToFile(url: string, filename?: string): Promise<File> {
+    const res = await fetch(url)
+    if (!res.ok) throw new Error('图片下载失败')
+    const blob = await res.blob()
+    let name = filename
+    if (!name) {
+      const ext = url.split('.').pop()?.split('?')[0] || 'jpg'
+      name = `cover.${ext}`
+    }
+    return new File([blob], name, { type: blob.type })
+  }
+
+
 
   if (isFetching) {
     return (
@@ -243,51 +286,70 @@ export default function EditBlogPage({ params }: { params: { id: string } }) {
             {/* Replace the Textarea component with our RichTextEditor */}
             <div className="space-y-2">
               <Label htmlFor="content">Content</Label>
-              <RichTextEditor
-                value={content}
-                onChange={setContent}
-                placeholder="Write your blog post content here..."
-                minHeight="300px"
-              />
-            </div>
+              {/*<RichTextEditor*/}
+              {/*    value={content}*/}
+              {/*    onChange={setContent}*/}
+              {/*    placeholder="Write your blog post content here..."*/}
+              {/*    minHeight="300px"*/}
+              {/*/>*/}
 
-            <div className="space-y-2">
-              <Label htmlFor="image">Cover Image (Optional)</Label>
-              <div className="flex items-center gap-4">
-                <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
-                  <ImageIcon className="mr-2 h-4 w-4" />
-                  {currentImageUrl ? "Change Image" : "Select Image"}
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  id="image"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="hidden"
+              <div className="w-full min-h-[300px] flex flex-col">
+                <MDEditor
+                    value={content}
+                    onChange={handleContentChange}
+                    className="w-full min-h-[300px]"
+                    style={{flex: 1}}
                 />
-                {imagePreview && <span className="text-sm text-muted-foreground">Image selected</span>}
               </div>
 
-              {imagePreview && (
-                <div className="relative mt-4 w-full max-w-md">
-                  <img
-                    src={imagePreview || "/placeholder.svg"}
-                    alt="Preview"
-                    className="rounded-md max-h-[200px] object-cover"
-                  />
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
-                    className="absolute top-2 right-2 h-8 w-8"
-                    onClick={removeImage}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
+              {/*<MDEditor.Markdown source={content} style={{whiteSpace: 'pre-wrap'}}/>*/}
+
+              {/*<div className="container mt-10">*/}
+              {/*  <MDEditor*/}
+              {/*      value={content}*/}
+              {/*      onChange={setContent}*/}
+              {/*  />*/}
+              {/*  <MDEditor.Markdown source={content} style={{whiteSpace: 'pre-wrap'}}/>*/}
+              {/*</div>*/}
             </div>
+
+            {/*<div className="space-y-2">*/}
+            {/*  <Label htmlFor="image">Cover Image (Optional)</Label>*/}
+            {/*  <div className="flex items-center gap-4">*/}
+            {/*    <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>*/}
+            {/*      <ImageIcon className="mr-2 h-4 w-4" />*/}
+            {/*      {currentImageUrl ? "Change Image" : "Select Image"}*/}
+            {/*    </Button>*/}
+            {/*    <input*/}
+            {/*      ref={fileInputRef}*/}
+            {/*      id="image"*/}
+            {/*      type="file"*/}
+            {/*      accept="image/*"*/}
+            {/*      onChange={handleImageChange}*/}
+            {/*      className="hidden"*/}
+            {/*    />*/}
+            {/*    {imagePreview && <span className="text-sm text-muted-foreground">Image selected</span>}*/}
+            {/*  </div>*/}
+
+            {/*  {imagePreview && (*/}
+            {/*    <div className="relative mt-4 w-full max-w-md">*/}
+            {/*      <img*/}
+            {/*        src={imagePreview || "/placeholder.svg"}*/}
+            {/*        alt="Preview"*/}
+            {/*        className="rounded-md max-h-[200px] object-cover"*/}
+            {/*      />*/}
+            {/*      <Button*/}
+            {/*        type="button"*/}
+            {/*        variant="destructive"*/}
+            {/*        size="icon"*/}
+            {/*        className="absolute top-2 right-2 h-8 w-8"*/}
+            {/*        onClick={removeImage}*/}
+            {/*      >*/}
+            {/*        <X className="h-4 w-4" />*/}
+            {/*      </Button>*/}
+            {/*    </div>*/}
+            {/*  )}*/}
+            {/*</div>*/}
           </CardContent>
 
           <CardFooter className="flex gap-2">

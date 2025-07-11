@@ -15,6 +15,7 @@ import { ImageIcon, X } from "lucide-react"
 // Update the imports to include our new RichTextEditor
 import RichTextEditor from "@/components/rich-text-editor"
 import CategorySelector from "@/components/category-selector"
+import MDEditor from '@uiw/react-md-editor';
 
 export default function CreateBlogPage() {
   const [title, setTitle] = useState("")
@@ -78,6 +79,12 @@ export default function CreateBlogPage() {
 
     setIsLoading(true)
 
+    let coverFile = imageFile;
+    if (!coverFile && imagePreview) {
+      // src to file
+      coverFile = await urlToFile(imagePreview, "cover.jpg");
+    }
+
     try {
       const postId = await createBlogPost(
         title,
@@ -86,7 +93,7 @@ export default function CreateBlogPage() {
         user.displayName || user.email?.split("@")[0] || "Anonymous",
         category,
         user.photoURL || undefined,
-        imageFile || undefined,
+          coverFile || undefined,
         customCategoryId, // Add this parameter
       )
 
@@ -106,6 +113,41 @@ export default function CreateBlogPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  async function urlToFile(url: string, filename?: string): Promise<File> {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('download image failed');
+    const blob = await res.blob();
+
+    let name = filename;
+    if (!name) {
+      const ext = url.split('.').pop()?.split('?')[0] || 'jpg';
+      name = `cover.${ext}`;
+    }
+    const file = new File([blob], name, { type: blob.type });
+    return file;
+  }
+
+
+  const handleContentChange = (val: string = "") => {
+    setContent(val);
+    const imgSrc = extractFirstImageSrc(val);
+    setImagePreview(imgSrc || null);
+    setImageFile(null);
+  };
+
+
+  function extractFirstImageSrc(md: string): string | null {
+    // find md img
+    const mdImg = md.match(/!\[.*?\]\((.*?)\)/);
+    if (mdImg) return mdImg[1];
+
+    // find html img
+    const htmlImg = md.match(/<img[^>]*src=["']([^"']+)["'][^>]*>/i);
+    if (htmlImg) return htmlImg[1];
+
+    return null;
   }
 
   return (
@@ -139,51 +181,74 @@ export default function CreateBlogPage() {
             {/* Replace the Textarea component with our RichTextEditor */}
             <div className="space-y-2">
               <Label htmlFor="content">Content</Label>
-              <RichTextEditor
-                value={content}
-                onChange={setContent}
-                placeholder="Write your blog post content here..."
-                minHeight="300px"
-              />
+              {/*<RichTextEditor*/}
+              {/*    value={content}*/}
+              {/*    onChange={setContent}*/}
+              {/*    placeholder="Write your blog post content here..."*/}
+              {/*    minHeight="300px"*/}
+              {/*/>*/}
+
+              <div
+                  className="col-span-4 row-span-4">
+                <div className="w-full min-h-[300px] flex flex-col">
+                  <MDEditor
+                      value={content}
+                      onChange={handleContentChange}
+                      className="w-full min-h-[300px]"
+                      style={{flex: 1}}
+                  />
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="image">Cover Image (Optional)</Label>
-              <div className="flex items-center gap-4">
-                <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
-                  <ImageIcon className="mr-2 h-4 w-4" />
-                  Select Image
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  id="image"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="hidden"
-                />
-                {imagePreview && <span className="text-sm text-muted-foreground">Image selected</span>}
-              </div>
+            {/*<div className="space-y-2">*/}
+            {/*  <Label htmlFor="image">Cover Image (Optional)</Label>*/}
+            {/*  <div className="flex items-center gap-4">*/}
+            {/*    <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>*/}
+            {/*      <ImageIcon className="mr-2 h-4 w-4"/>*/}
+            {/*      Select Image*/}
+            {/*    </Button>*/}
+            {/*    <input*/}
+            {/*      ref={fileInputRef}*/}
+            {/*      id="image"*/}
+            {/*      type="file"*/}
+            {/*      accept="image/*"*/}
+            {/*      onChange={handleImageChange}*/}
+            {/*      className="hidden"*/}
+            {/*    />*/}
+            {/*    {imagePreview && <span className="text-sm text-muted-foreground">Image selected</span>}*/}
+            {/*  </div>*/}
 
-              {imagePreview && (
+            {/*  {imagePreview && (*/}
+            {/*    <div className="relative mt-4 w-full max-w-md">*/}
+            {/*      <img*/}
+            {/*        src={imagePreview || "/placeholder.svg"}*/}
+            {/*        alt="Preview"*/}
+            {/*        className="rounded-md max-h-[200px] object-cover"*/}
+            {/*      />*/}
+            {/*      <Button*/}
+            {/*        type="button"*/}
+            {/*        variant="destructive"*/}
+            {/*        size="icon"*/}
+            {/*        className="absolute top-2 right-2 h-8 w-8"*/}
+            {/*        onClick={removeImage}*/}
+            {/*      >*/}
+            {/*        <X className="h-4 w-4" />*/}
+            {/*      </Button>*/}
+            {/*    </div>*/}
+            {/*  )}*/}
+            {/*</div>*/}
+
+            {imagePreview && (
                 <div className="relative mt-4 w-full max-w-md">
                   <img
-                    src={imagePreview || "/placeholder.svg"}
-                    alt="Preview"
-                    className="rounded-md max-h-[200px] object-cover"
+                      src={imagePreview}
+                      alt="Cover Preview"
+                      className="rounded-md max-h-[200px] object-cover"
                   />
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
-                    className="absolute top-2 right-2 h-8 w-8"
-                    onClick={removeImage}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
                 </div>
-              )}
-            </div>
+            )}
+
           </CardContent>
 
           <CardFooter>
