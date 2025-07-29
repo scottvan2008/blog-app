@@ -301,7 +301,10 @@ export default function BlogPostPage({ params }: { params: { id: string } }) {
                   </div>
                 </Card>
             )}
-            <ReactAudioPlayer controls className="m-auto"></ReactAudioPlayer>
+            {post.audioUrl && (
+              <ReactAudioPlayer src={post.audioUrl} controls className="m-auto"></ReactAudioPlayer>
+            )}
+            
             <div className="prose prose-lg max-w-none mb-12">
               <MarkdownPreview source={post.content} components={mdComponents} />
             </div>
