@@ -20,6 +20,7 @@ export interface BlogPost {
   title: string
   content: string
   imageUrl?: string
+  audioUrl?: string
   authorId: string
   authorName: string
   authorPhotoURL?: string
@@ -36,15 +37,23 @@ export async function createBlogPost(
   category = "other",
   authorPhotoURL?: string,
   imageFile?: File,
+  audioFile?: File,
   customCategoryId?: string, // Add this parameter
 ): Promise<string> {
   let imageUrl = ""
+  let audioUrl = ""
 
   // Upload image if provided
   if (imageFile) {
     const imageRef = ref(storage, `blog-images/${authorId}/${Date.now()}-${imageFile.name}`)
     const uploadResult = await uploadBytes(imageRef, imageFile)
     imageUrl = await getDownloadURL(uploadResult.ref)
+  }
+
+  if (audioFile) {
+    const audioRef = ref(storage, `blog-audio/${authorId}/${Date.now()}-${audioFile.name}`);
+    const uploadResult = await uploadBytes(audioRef, audioFile);
+    audioUrl = await getDownloadURL(uploadResult.ref);
   }
 
   // Create blog post document
@@ -62,6 +71,11 @@ export async function createBlogPost(
   // Only add imageUrl if it exists
   if (imageUrl) {
     blogData.imageUrl = imageUrl
+  }
+
+  // same goes for audio 
+  if (audioUrl) {
+    blogData.audioUrl = audioUrl
   }
 
   // Only add authorPhotoURL if it exists

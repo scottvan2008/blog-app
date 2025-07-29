@@ -16,6 +16,7 @@ import { ImageIcon, X } from "lucide-react"
 import RichTextEditor from "@/components/rich-text-editor"
 import CategorySelector from "@/components/category-selector"
 import MDEditor from '@uiw/react-md-editor';
+import { FileUploader } from "react-drag-drop-files";
 
 export default function CreateBlogPage() {
   const [title, setTitle] = useState("")
@@ -31,6 +32,17 @@ export default function CreateBlogPage() {
   const [category, setCategory] = useState("other")
   // Add state for custom category
   const [customCategoryId, setCustomCategoryId] = useState<string | undefined>()
+
+
+  //audio stuff
+
+  const fileTypes = ["MP3", "WAV"]
+
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const handleChange = (audioFile: File) => {
+    setAudioFile(audioFile);
+  };
+
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -94,6 +106,7 @@ export default function CreateBlogPage() {
         category,
         user.photoURL || undefined,
           coverFile || undefined,
+        audioFile || undefined,
         customCategoryId, // Add this parameter
       )
 
@@ -248,7 +261,7 @@ export default function CreateBlogPage() {
                   />
                 </div>
             )}
-
+            <FileUploader handleChange={handleChange} name="file" multiple={false} types={fileTypes} />
           </CardContent>
 
           <CardFooter>
