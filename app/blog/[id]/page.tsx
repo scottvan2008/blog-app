@@ -28,6 +28,7 @@ import FollowButton from "@/components/follow-button"
 import LikeButton from "@/components/like-button"
 import CommentSection from "@/components/comment-section"
 import UserAvatar from "@/components/user-avatar"
+import ReactAudioPlayer from 'react-audio-player'
 
 // Add import
 import { getPostCategoryName } from "@/lib/enhanced-blog-service"
@@ -300,7 +301,7 @@ export default function BlogPostPage({ params }: { params: { id: string } }) {
                   </div>
                 </Card>
             )}
-
+            <ReactAudioPlayer controls className="m-auto"></ReactAudioPlayer>
             <div className="prose prose-lg max-w-none mb-12">
               <MarkdownPreview source={post.content} components={mdComponents} />
             </div>
